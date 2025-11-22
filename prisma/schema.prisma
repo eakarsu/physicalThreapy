@@ -1,0 +1,331 @@
+// PT Flow AI - Prisma Schema
+// Physical Therapy Practice Management System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  THERAPIST
+  STAFF
+  PATIENT_PORTAL
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum ExerciseDifficulty {
+  EASY
+  MODERATE
+  HARD
+}
+
+enum BodyRegion {
+  NECK
+  SHOULDER
+  ELBOW
+  WRIST
+  HAND
+  UPPER_BACK
+  LOWER_BACK
+  HIP
+  KNEE
+  ANKLE
+  FOOT
+  CORE
+  FULL_BODY
+}
+
+enum ProgressMetricType {
+  ROM
+  STRENGTH
+  PAIN
+  FUNCTIONAL_SCORE
+}
+
+enum ClaimStatus {
+  DRAFT
+  SUBMITTED
+  PAID
+  DENIED
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  hashedPassword String
+  name           String
+  role           UserRole @default(THERAPIST)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  appointments        Appointment[]
+  sessionNotes        SessionNote[]
+  progressMetrics     ProgressMetric[]
+  createdExercises    Exercise[]
+  claims              Claim[]
+  sentMessages        Message[]
+  createdThreads      MessageThread[]
+
+  @@map("users")
+}
+
+model Patient {
+  id                    String    @id @default(uuid())
+  firstName             String
+  lastName              String
+  dateOfBirth           DateTime
+  sex                   Sex
+  phone                 String
+  email                 String?
+  address               String?
+  primaryDiagnosis      String
+  medicalHistory        String?   @db.Text
+  emergencyContactName  String
+  emergencyContactPhone String
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Relations
+  appointments      Appointment[]
+  sessionNotes      SessionNote[]
+  progressMetrics   ProgressMetric[]
+  insurancePolicies InsurancePolicy[]
+  claims            Claim[]
+  messageThreads    MessageThread[]
+
+  @@map("patients")
+}
+
+model Appointment {
+  id          String            @id @default(uuid())
+  patientId   String
+  therapistId String
+  startTime   DateTime
+  endTime     DateTime
+  status      AppointmentStatus @default(SCHEDULED)
+  location    String?
+  notes       String?           @db.Text
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  therapist    User          @relation(fields: [therapistId], references: [id])
+  sessionNotes SessionNote[]
+
+  @@index([patientId])
+  @@index([therapistId])
+  @@index([startTime])
+  @@map("appointments")
+}
+
+model Exercise {
+  id              String             @id @default(uuid())
+  name            String
+  description     String             @db.Text
+  bodyRegion      BodyRegion
+  difficulty      ExerciseDifficulty
+  mediaUrl        String?
+  createdByUserId String
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  // Relations
+  createdBy        User               @relation(fields: [createdByUserId], references: [id])
+  sessionExercises SessionExercise[]
+
+  @@index([bodyRegion])
+  @@index([difficulty])
+  @@map("exercises")
+}
+
+model SessionNote {
+  id            String   @id @default(uuid())
+  patientId     String
+  therapistId   String
+  appointmentId String?
+  subjective    String   @db.Text
+  objective     String   @db.Text
+  assessment    String   @db.Text
+  plan          String   @db.Text
+  aiSummary     String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  patient          Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  therapist        User              @relation(fields: [therapistId], references: [id])
+  appointment      Appointment?      @relation(fields: [appointmentId], references: [id])
+  sessionExercises SessionExercise[]
+
+  @@index([patientId])
+  @@index([therapistId])
+  @@index([appointmentId])
+  @@map("session_notes")
+}
+
+model SessionExercise {
+  id              String   @id @default(uuid())
+  sessionNoteId   String
+  exerciseId      String
+  sets            Int?
+  reps            Int?
+  weight          Float?
+  durationSeconds Int?
+  painScore       Int      @default(0) // 0-10 scale
+  comments        String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  sessionNote SessionNote @relation(fields: [sessionNoteId], references: [id], onDelete: Cascade)
+  exercise    Exercise    @relation(fields: [exerciseId], references: [id])
+
+  @@index([sessionNoteId])
+  @@index([exerciseId])
+  @@map("session_exercises")
+}
+
+model ProgressMetric {
+  id                String             @id @default(uuid())
+  patientId         String
+  type              ProgressMetricType
+  label             String
+  valueNumeric      Float
+  unit              String
+  measuredAt        DateTime
+  createdByUserId   String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  // Relations
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdBy User    @relation(fields: [createdByUserId], references: [id])
+
+  @@index([patientId])
+  @@index([type])
+  @@index([measuredAt])
+  @@map("progress_metrics")
+}
+
+model InsurancePayer {
+  id           String   @id @default(uuid())
+  name         String
+  contactPhone String?
+  contactEmail String?
+  address      String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  policies InsurancePolicy[]
+
+  @@map("insurance_payers")
+}
+
+model InsurancePolicy {
+  id            String   @id @default(uuid())
+  patientId     String
+  payerId       String
+  policyNumber  String
+  groupNumber   String?
+  coverageNotes String?  @db.Text
+  isPrimary     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  patient Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  payer   InsurancePayer  @relation(fields: [payerId], references: [id])
+  claims  Claim[]
+
+  @@index([patientId])
+  @@index([payerId])
+  @@map("insurance_policies")
+}
+
+model Claim {
+  id              String      @id @default(uuid())
+  patientId       String
+  policyId        String
+  therapistId     String
+  status          ClaimStatus @default(DRAFT)
+  serviceDate     DateTime
+  amountBilled    Float
+  amountPaid      Float       @default(0)
+  cptCodes        String[]
+  icdCodes        String[]
+  aiJustification String?     @db.Text
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  patient  Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  policy   InsurancePolicy @relation(fields: [policyId], references: [id])
+  therapist User           @relation(fields: [therapistId], references: [id])
+
+  @@index([patientId])
+  @@index([policyId])
+  @@index([status])
+  @@index([serviceDate])
+  @@map("claims")
+}
+
+model MessageThread {
+  id              String   @id @default(uuid())
+  patientId       String
+  subject         String
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  patient   Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdBy User      @relation(fields: [createdByUserId], references: [id])
+  messages  Message[]
+
+  @@index([patientId])
+  @@map("message_threads")
+}
+
+model Message {
+  id           String    @id @default(uuid())
+  threadId     String
+  senderUserId String
+  content      String    @db.Text
+  sentAt       DateTime  @default(now())
+  readAt       DateTime?
+
+  // Relations
+  thread MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender User          @relation(fields: [senderUserId], references: [id])
+
+  @@index([threadId])
+  @@index([senderUserId])
+  @@map("messages")
+}
