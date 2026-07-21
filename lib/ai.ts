@@ -3,13 +3,6 @@
  * Provides a unified interface for AI-powered features in PT Flow AI
  */
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'anthropic/claude-3-haiku';
-const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
-
-if (!OPENROUTER_API_KEY) {
-  console.warn('⚠️  OPENROUTER_API_KEY is not set. AI features will not work.');
-}
 
 export interface AIRequest {
   systemPrompt: string;
@@ -28,68 +21,20 @@ export interface AIResponse {
  * Call OpenRouter API with system and user prompts
  */
 export async function callAI({
-  systemPrompt,
-  userPrompt,
-  model = OPENROUTER_MODEL,
-  temperature = 0.7,
-  maxTokens = 2000,
+  systemPrompt: _systemPrompt,
+  userPrompt: _userPrompt,
+  model: _model,
+  temperature: _temperature,
+  maxTokens: _maxTokens,
 }: AIRequest): Promise<AIResponse> {
-  if (!OPENROUTER_API_KEY) {
-    return {
-      text: '',
-      error: 'OpenRouter API key not configured',
-    };
-  }
-
-  try {
-    const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': process.env.NEXTAUTH_URL || 'http://localhost:3000',
-        'X-Title': 'PT Flow AI',
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature,
-        max_tokens: maxTokens,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenRouter API error:', errorText);
-
-      // Check for specific error messages
-      if (errorText.includes('All providers have been ignored')) {
-        return {
-          text: '',
-          error: 'OpenRouter account configuration error: All AI providers are disabled. Please visit https://openrouter.ai/settings/preferences to enable at least one provider (e.g., Anthropic/Claude).',
-        };
-      }
-
-      return {
-        text: '',
-        error: `API request failed: ${response.status} ${response.statusText}`,
-      };
-    }
-
-    const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || '';
-
-    return { text };
-  } catch (error) {
-    console.error('AI call error:', error);
-    return {
-      text: '',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
+  // Kept as a compatibility boundary for the legacy UI. No clinical or billing
+  // content is sent to an external model. Any future provider integration must
+  // enforce tenant access, explicit EXTERNAL_AI consent, a BAA/DPA, provenance,
+  // safety screening, and independent clinician approval before this changes.
+  return {
+    text: '',
+    error: 'Legacy AI generation is disabled by the controlled clinical-data boundary',
+  };
 }
 
 /**

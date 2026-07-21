@@ -14,6 +14,17 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  if (process.env.ALLOW_DISPOSABLE_SEED !== 'YES') {
+    throw new Error('Refusing destructive seed without ALLOW_DISPOSABLE_SEED=YES');
+  }
+  const databaseUrl = new URL(connectionString);
+  if (!['127.0.0.1', 'localhost', '::1'].includes(databaseUrl.hostname)) {
+    throw new Error('Destructive seed is limited to a loopback PostgreSQL database');
+  }
+  const seedPassword = process.env.SEED_USER_PASSWORD || '';
+  if (seedPassword.length < 16) {
+    throw new Error('SEED_USER_PASSWORD must contain at least 16 characters');
+  }
   console.log('🌱 Starting seed...');
 
   // Clear existing data
@@ -33,7 +44,7 @@ async function main() {
   console.log('✅ Cleared existing data');
 
   // Create Users
-  const hashedPassword = await bcrypt.hash('password123', 10);
+  const hashedPassword = await bcrypt.hash(seedPassword, 12);
 
   const admin = await prisma.user.create({
     data: {
@@ -1045,11 +1056,7 @@ async function main() {
   console.log(`   - ${policies.length} insurance policies created`);
   console.log(`   - ${claims.length} claims created`);
   console.log(`   - ${messageThreads.length} message threads created`);
-  console.log('\n🔐 Login credentials:');
-  console.log('   Email: admin@ptflow.ai | Password: password123');
-  console.log('   Email: therapist1@ptflow.ai | Password: password123');
-  console.log('   Email: therapist2@ptflow.ai | Password: password123');
-  console.log('   Email: therapist3@ptflow.ai | Password: password123');
+  console.log('\n🔐 Seed users created. Password value was supplied by the operator and is not logged.');
 }
 
 main()

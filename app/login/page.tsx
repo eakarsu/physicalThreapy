@@ -113,20 +113,9 @@ export default function LoginPage() {
               </Button>
             </Box>
 
-            <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Demo Credentials:
-              </Typography>
-              <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                <strong>Admin:</strong> admin@ptflow.ai
-              </Typography>
-              <Typography variant="caption" display="block">
-                <strong>Therapist:</strong> therapist1@ptflow.ai
-              </Typography>
-              <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                All passwords: <strong>password123</strong>
-              </Typography>
-            </Box>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 3 }}>
+              Use credentials provisioned by the authorized local operator.
+            </Typography>
           </CardContent>
         </Card>
       </Box>

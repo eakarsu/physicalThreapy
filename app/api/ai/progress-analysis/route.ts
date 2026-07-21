@@ -11,7 +11,6 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log('Progress analysis request body:', JSON.stringify(body, null, 2));
     const { patientName, diagnosis, sessionHistory, initialEval, currentStatus } = body;
 
     const systemPrompt = `You are a physical therapist analyzing patient progress data to provide insights.
@@ -50,7 +49,6 @@ Please provide:
 4. Trends in measurable outcomes
 5. Functional gains achieved`;
 
-    console.log('Calling AI with prompts...');
     const result = await callAI({
       systemPrompt,
       userPrompt,
@@ -58,19 +56,15 @@ Please provide:
       maxTokens: 1500,
     });
 
-    console.log('AI result:', result);
-
     if (result.error) {
-      console.error('AI returned error:', result.error);
       return NextResponse.json({ error: result.error }, { status: 500 });
     }
 
     return NextResponse.json({ analysis: result.text });
   } catch (error) {
     console.error('Error generating progress analysis:', error);
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
-      { error: 'Failed to generate progress analysis', details: error instanceof Error ? error.message : String(error) },
+      { error: 'Failed to generate progress analysis' },
       { status: 500 }
     );
   }

@@ -1,0 +1,9 @@
+# Security and regulated-data boundary
+
+Do not store real PHI in this repository or an unapproved deployment. The controlled `/api/clinical` workflow adds tenant/role/care-team checks, explicit field projections, verified consent, application-layer AES-256-GCM encryption, hashed identifiers, immutable chained audit evidence, retention/legal holds, incident intake, and independent clinical review. These controls are implementation evidence—not HIPAA certification or permission to process PHI.
+
+Production requires a named clinical owner and security/privacy owner; jurisdiction-specific privacy/consent/retention approval; managed KMS/HSM keys and tested rotation/recovery; TLS and encrypted backups; SSO/MFA/session policy; centralized immutable log export/alerting; availability monitoring; tested backup/restore and disaster recovery; vendor BAAs/DPAs; vulnerability management; penetration testing; workforce training; representative-user validation; and an approved deployment architecture. External AI remains disabled.
+
+`PHI_ENCRYPTION_KEY` must be a unique base64-encoded 32-byte key. `IDENTITY_HASH_KEY` must be an independent random secret of at least 32 bytes. Keep both in a managed secret store, rotate under a documented key-version procedure, and never reuse CI/example values. `FHIR_TRUSTED_SOURCE_SYSTEMS` must contain only approved exact source identifiers. Database users must be least-privileged and must not be able to disable evidence triggers.
+
+Credentials and patient data must never be committed. Seed passwords apply only to disposable loopback databases. Report suspected exposure immediately using [the incident runbook](docs/REGULATED_DATA_INCIDENT_RESPONSE.md), preserve evidence, and rotate affected credentials/keys. See [the controlled workflow](docs/CONTROLLED_CARE_WORKFLOW.md) and [human validation protocol](docs/WORKFLOW_VALIDATION.md).

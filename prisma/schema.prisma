@@ -69,6 +69,60 @@ enum ClaimStatus {
   DENIED
 }
 
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum IdentityState {
+  NEEDS_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum ConsentStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  REJECTED
+  ENTERED_IN_ERROR
+}
+
+enum ConsentScope {
+  TREATMENT
+  DATA_USE
+  EXTERNAL_DISCLOSURE
+  EXTERNAL_AI
+}
+
+enum ArtifactStatus {
+  PENDING_REVIEW
+  ESCALATED
+  APPROVED
+  REJECTED
+  SUPERSEDED
+}
+
+enum ClinicalRisk {
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
+}
+
+enum ReviewDecision {
+  APPROVE
+  REJECT
+  RETURN_FOR_CHANGES
+}
+
+enum IncidentStatus {
+  OPEN
+  CONTAINED
+  INVESTIGATING
+  RESOLVED
+}
+
 // ============================================
 // MODELS
 // ============================================
@@ -90,6 +144,8 @@ model User {
   claims              Claim[]
   sentMessages        Message[]
   createdThreads      MessageThread[]
+  practiceMemberships PracticeMembership[]
+  careTeamAssignments CareTeamAssignment[]
 
   @@map("users")
 }
@@ -328,4 +384,267 @@ model Message {
   @@index([threadId])
   @@index([senderUserId])
   @@map("messages")
+}
+
+// Production-boundary models. The original prototype models above remain only
+// for disposable demonstrations and are blocked from runtime routing.
+model Practice {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships PracticeMembership[]
+  patients    ClinicalPatient[]
+  consents    ConsentRecord[]
+  artifacts   ClinicalArtifact[]
+  audits      AuditEvent[]
+  incidents   SecurityIncident[]
+
+  @@map("practices")
+}
+
+model PracticeMembership {
+  id              String           @id @default(uuid())
+  practiceId      String
+  userId          String
+  role            UserRole
+  status          MembershipStatus @default(ACTIVE)
+  portalPatientId String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  practice Practice         @relation(fields: [practiceId], references: [id], onDelete: Restrict)
+  patient  ClinicalPatient? @relation("PortalPatient", fields: [portalPatientId], references: [id], onDelete: Restrict)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([practiceId, userId])
+  @@index([userId, status])
+  @@map("practice_memberships")
+}
+
+model ClinicalPatient {
+  id                    String        @id @default(uuid())
+  practiceId            String
+  fhirResourceId        String?
+  identityState         IdentityState @default(NEEDS_REVIEW)
+  encryptedDemographics String        @db.Text
+  encryptionKeyId       String
+  payloadHash           String
+  sourceSystem          String
+  fhirVersion           String        @default("4.0.1")
+  verifiedByUserId      String?
+  verifiedAt            DateTime?
+  retainedUntil         DateTime?
+  purgedAt              DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  practice          Practice             @relation(fields: [practiceId], references: [id], onDelete: Restrict)
+  identifiers       PatientIdentifier[]
+  consents          ConsentRecord[]
+  careTeam          CareTeamAssignment[]
+  artifacts         ClinicalArtifact[]
+  portalMemberships PracticeMembership[] @relation("PortalPatient")
+  legalHolds        LegalHold[]
+
+  @@unique([practiceId, fhirResourceId])
+  @@index([practiceId, identityState])
+  @@map("clinical_patients")
+}
+
+model PatientIdentifier {
+  id         String   @id @default(uuid())
+  practiceId String
+  patientId  String
+  system     String
+  valueHash  String
+  lastFour   String
+  createdAt  DateTime @default(now())
+
+  patient ClinicalPatient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  @@unique([practiceId, system, valueHash])
+  @@index([patientId])
+  @@map("patient_identifiers")
+}
+
+model ConsentRecord {
+  id               String        @id @default(uuid())
+  practiceId       String
+  patientId        String
+  fhirConsentId    String?
+  status           ConsentStatus
+  scopes           ConsentScope[]
+  policyUri        String
+  sourceSystem     String
+  sourceHash       String
+  effectiveFrom    DateTime
+  effectiveUntil   DateTime?
+  verified         Boolean       @default(false)
+  verifiedByUserId String?
+  verifiedAt       DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  practice Practice        @relation(fields: [practiceId], references: [id], onDelete: Restrict)
+  patient  ClinicalPatient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  @@unique([practiceId, fhirConsentId])
+  @@index([patientId, status, effectiveFrom])
+  @@map("consent_records")
+}
+
+model CareTeamAssignment {
+  id          String    @id @default(uuid())
+  practiceId  String
+  patientId   String
+  userId      String
+  relationship String
+  startsAt    DateTime  @default(now())
+  endsAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  patient ClinicalPatient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([practiceId, patientId, userId, relationship])
+  @@index([practiceId, userId, endsAt])
+  @@map("care_team_assignments")
+}
+
+model ClinicalArtifact {
+  id                  String         @id @default(uuid())
+  practiceId          String
+  patientId           String
+  artifactType        String
+  encryptedContent    String         @db.Text
+  encryptionKeyId     String
+  contentHash         String
+  provenance          Json
+  sourceResourceIds   String[]
+  safetyFlags         String[]
+  missingData         String[]
+  risk                 ClinicalRisk
+  status               ArtifactStatus @default(PENDING_REVIEW)
+  createdByUserId      String
+  approvedByUserId     String?
+  approvedAt           DateTime?
+  retainedUntil        DateTime?
+  purgedAt              DateTime?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  practice Practice        @relation(fields: [practiceId], references: [id], onDelete: Restrict)
+  patient  ClinicalPatient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  reviews  ClinicalReview[]
+
+  @@index([practiceId, status, risk])
+  @@index([patientId, createdAt])
+  @@map("clinical_artifacts")
+}
+
+model ClinicalReview {
+  id             String         @id @default(uuid())
+  artifactId     String
+  reviewerUserId String
+  decision       ReviewDecision
+  rationale      String         @db.Text
+  safetyAttested Boolean
+  createdAt      DateTime       @default(now())
+
+  artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Restrict)
+
+  @@index([artifactId, createdAt])
+  @@map("clinical_reviews")
+}
+
+model AuditEvent {
+  id            String   @id @default(uuid())
+  practiceId    String
+  sequence      BigInt
+  actorUserId   String
+  action        String
+  resourceType  String
+  resourceId    String
+  patientId     String?
+  purposeOfUse  String
+  outcome       String
+  metadata      Json
+  previousHash  String
+  eventHash     String
+  createdAt     DateTime @default(now())
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Restrict)
+
+  @@unique([practiceId, sequence])
+  @@index([practiceId, patientId, createdAt])
+  @@map("audit_events")
+}
+
+model RetentionPolicy {
+  id          String   @id @default(uuid())
+  practiceId  String
+  recordType  String
+  retainDays  Int
+  enabled     Boolean  @default(true)
+  approvedBy  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([practiceId, recordType])
+  @@map("retention_policies")
+}
+
+model LegalHold {
+  id            String    @id @default(uuid())
+  practiceId    String
+  patientId     String
+  reason        String    @db.Text
+  openedBy      String
+  releasedBy    String?
+  releasedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  patient ClinicalPatient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  @@index([practiceId, patientId, releasedAt])
+  @@map("legal_holds")
+}
+
+model SecurityIncident {
+  id                String         @id @default(uuid())
+  practiceId        String
+  status            IncidentStatus @default(OPEN)
+  severity          ClinicalRisk
+  summary           String         @db.Text
+  detectedByUserId  String
+  containmentNotes  String?        @db.Text
+  affectedResources String[]
+  notificationDueAt DateTime?
+  resolvedAt        DateTime?
+  outcome           String?        @db.Text
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Restrict)
+
+  @@index([practiceId, status, severity])
+  @@map("security_incidents")
+}
+
+model WorkflowValidation {
+  id              String   @id @default(uuid())
+  practiceId      String
+  scenarioId      String
+  participantRole String
+  facilitatorId   String
+  result          String
+  evidenceUri     String
+  findings        Json
+  performedAt     DateTime
+  createdAt       DateTime @default(now())
+
+  @@unique([practiceId, scenarioId, participantRole, performedAt])
+  @@map("workflow_validations")
 }

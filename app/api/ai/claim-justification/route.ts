@@ -11,7 +11,6 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log('Claim justification request:', JSON.stringify(body, null, 2));
 
     // Support both old format (claim, patient) and new format (diagnosis, cptCodes, etc)
     let diagnosis, cptCodes, icdCodes, functionalLimitations, sessionNotes;
@@ -33,10 +32,7 @@ export async function POST(request: NextRequest) {
       sessionNotes = body.sessionNotes || '';
     }
 
-    console.log('Extracted values:', { diagnosis, cptCodes, icdCodes, functionalLimitations });
-
     if (!diagnosis || !cptCodes || !icdCodes) {
-      console.error('Missing required fields:', { diagnosis, cptCodes, icdCodes });
       return NextResponse.json(
         { error: 'Missing required fields: diagnosis, cptCodes, icdCodes', received: { diagnosis, cptCodes, icdCodes } },
         { status: 400 }
