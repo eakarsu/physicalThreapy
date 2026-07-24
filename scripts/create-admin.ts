@@ -19,14 +19,16 @@ async function main() {
   const pool = new Pool({ connectionString: databaseUrl });
   const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
   try {
-    if (await prisma.user.findUnique({ where: { email } })) throw new Error('Administrator already exists; refusing to overwrite it');
-    const user = await prisma.user.create({
-      data: {
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const user = await prisma.user.upsert({
+      where: { email },
+      create: {
         email,
-        hashedPassword: await bcrypt.hash(password, 12),
+        hashedPassword,
         name,
         role: UserRole.ADMIN,
       },
+      update: { hashedPassword, name, role: UserRole.ADMIN },
     });
     console.log(`Provisioned administrator ${user.id}`);
   } finally {

@@ -32,8 +32,8 @@
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
-    "next": "16.2.10",
-    "next-auth": "^4.24.13",
+    "next": "16.2.11",
+    "next-auth": "^4.24.15",
     "pg": "^8.16.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
@@ -50,7 +50,8 @@
   },
   "overrides": {
     "@hono/node-server": "1.19.13",
-    "postcss": "8.5.10",
+    "postcss": "8.5.22",
+    "sharp": "0.35.3",
     "uuid": "11.1.1"
   }
 }

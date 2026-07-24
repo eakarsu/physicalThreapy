@@ -146,8 +146,24 @@ model User {
   createdThreads      MessageThread[]
   practiceMemberships PracticeMembership[]
   careTeamAssignments CareTeamAssignment[]
+  aiProviderReceipts  AiProviderReceipt[]
 
   @@map("users")
+}
+
+model AiProviderReceipt {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  prompt            String   @db.Text
+  content           String   @db.Text
+  provider          String   @db.VarChar(32)
+  providerRequestId String   @map("provider_request_id") @db.VarChar(255)
+  model             String   @db.VarChar(255)
+  createdAt         DateTime @default(now()) @map("created_at")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@map("ai_provider_receipts")
 }
 
 model Patient {
