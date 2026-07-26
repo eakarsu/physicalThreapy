@@ -122,7 +122,7 @@ done
 
 cd "$source_dir"
 npx prisma generate >/dev/null
-npx prisma migrate deploy
+if [[ "${NODE_ENV:-development}" != production && "${ENABLE_DEMO_CREDENTIAL_AUTOFILL:-true}" == true ]]; then npx prisma db push; else npx prisma migrate deploy; fi
 BOOTSTRAP_ACKNOWLEDGEMENT=create-initial-admin npx tsx scripts/create-admin.ts
 NODE_ENV=production npm run start -- --hostname 127.0.0.1 --port "$app_port" &
 app_pid=$!
