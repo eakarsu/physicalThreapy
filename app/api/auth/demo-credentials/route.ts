@@ -1,0 +1,18 @@
+import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET() {
+  const enabled = process.env.RUNTIME_DEMO_CREDENTIAL_AUTOFILL === 'true';
+  const email = process.env.PROVISION_ADMIN_EMAIL;
+  const password = process.env.PROVISION_ADMIN_PASSWORD;
+
+  if (!enabled || !email || !password) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  return NextResponse.json(
+    { email, password },
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
+}
