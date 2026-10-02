@@ -46,6 +46,42 @@ export default function LoginPage() {
     }
   };
 
+  const fillDemoCredentials = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const response = await fetch('/api/auth/demo-credentials', { cache: 'no-store' });
+      if (!response.ok) {
+        setError('Demo credentials are unavailable');
+        return;
+      }
+      const credentials = await response.json();
+      const demoEmail = credentials.email;
+      const demoPassword = credentials.password;
+      if (!demoEmail || !demoPassword) {
+        setError('Demo credentials are unavailable');
+        return;
+      }
+      // Fill the fields, then sign in immediately with the freshly fetched values.
+      setEmail(demoEmail);
+      setPassword(demoPassword);
+      const result = await signIn('credentials', {
+        email: demoEmail,
+        password: demoPassword,
+        redirect: false,
+      });
+      if (result?.error) {
+        setError('Invalid email or password');
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Container maxWidth="sm">
       <Box
@@ -103,20 +139,12 @@ export default function LoginPage() {
               />
               <button
                 type="button"
-                onClick={async () => {
-                  const response = await fetch('/api/auth/demo-credentials', { cache: 'no-store' });
-                  if (!response.ok) {
-                    setError('Demo credentials are unavailable');
-                    return;
-                  }
-                  const credentials = await response.json();
-                  setEmail(credentials.email);
-                  setPassword(credentials.password);
-                }}
+                onClick={fillDemoCredentials}
+                disabled={loading}
                 aria-label="Auto Fill Demo Credentials"
                 style={{ width: '100%', marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', border: '1px solid currentColor', background: 'transparent', cursor: 'pointer' }}
               >
-                Auto Fill Demo Credentials
+                {loading ? 'Signing in…' : 'Auto Fill & Sign In (Demo)'}
               </button>
               <Button
                 fullWidth
